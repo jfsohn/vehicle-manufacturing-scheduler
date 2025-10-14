@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Workcenter {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  // capacity: 1 implied
+  parts     Part[]
+  schedules Schedule[]
+}
+
+model Part {
+  id           String      @id @default(cuid())
+  name         String
+  leadTimeMins Int
+  workcenterId String
+  workcenter   Workcenter  @relation(fields: [workcenterId], references: [id])
+  bomItems     BomItem[]
+  schedules    Schedule[]
+
+  @@unique([name, workcenterId])
+}
+
+model Vehicle {
+  id      String    @id @default(cuid())
+  sku     String    @unique
+  bom     BomItem[]
+  orders  Order[]
+}
+
+model BomItem {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  partId    String
+  part      Part     @relation(fields: [partId], references: [id])
+  quantity  Int
+
+  @@unique([vehicleId, partId])
+}
+
+model Order {
+  id         String    @id @default(cuid())
+  vehicleId  String
+  vehicle    Vehicle   @relation(fields: [vehicleId], references: [id])
+  createdAt  DateTime  @default(now())
+  status     OrderStatus @default(PENDING)
+  schedules  Schedule[]
+}
+
+enum OrderStatus {
+  PENDING
+  SCHEDULED
+}
+
+model Schedule {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id])
+  partId       String
+  part         Part     @relation(fields: [partId], references: [id])
+  unitIndex    Int      // 0..quantity-1
+  startTime    DateTime
+  endTime      DateTime
+  workcenterId String
+  workcenter   Workcenter @relation(fields: [workcenterId], references: [id])
+
+  @@unique([orderId, partId, unitIndex])
+}
